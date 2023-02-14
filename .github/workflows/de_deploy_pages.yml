@@ -1,0 +1,75 @@
+name: Publish German Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      # refer to variable by ${{ github.event.inputs.<variable name> }}
+      MANUAL_REPO_VERSION_TAG:
+        description: 'Version tag name to publish the site for - e.g.: v1.0'
+        required: true
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+.[0-9]+'
+
+
+      # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+# s. https://github.com/actions/starter-workflows/blob/main/pages/jekyll.yml
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment
+# s. https://github.com/actions/starter-workflows/blob/main/pages/jekyll.yml
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+
+jobs:
+  job1_Validate_Refs_Tag:
+    name: Validate Refs Tag
+    runs-on: ubuntu-latest
+    env:
+      LANGUAGE_CODE: de
+    outputs:
+      LANGUAGE_CODE: ${{ steps.provide_outputs.outputs.LANGUAGE_CODE }}
+      SOURCE_REPO_REF: ${{ steps.provide_outputs.outputs.SOURCE_REPO_REF }}
+      
+    steps:
+      # Log use case if triggered manually
+      - name: Log use case if triggered manually
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          echo "Workflow has been triggered manually"
+          echo "MANUAL_REPO_VERSION_TAG: ${{ github.event.inputs.MANUAL_REPO_VERSION_TAG }}"
+          echo "SOURCE_REPO_REF=refs/tags/${{ github.event.inputs.MANUAL_REPO_VERSION_TAG }}" >> $GITHUB_ENV
+
+      # Log use case if triggered by push
+      - name: Log use case if triggered by push
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          echo "Workflow has been triggered by push"
+          echo "github.ref: ${{ github.ref }}"
+          echo "SOURCE_REPO_REF=${{ github.ref }}" >> $GITHUB_ENV
+      
+      - name: Provide Outputs
+        id: provide_outputs
+        run: |
+          echo "LANGUAGE_CODE=${{ env.LANGUAGE_CODE }}" >> $GITHUB_OUTPUT
+          echo "SOURCE_REPO_REF=${{ env.SOURCE_REPO_REF }}" >> $GITHUB_OUTPUT
+
+
+  job2_Deploy_Site:
+    name: Call Reusable Deploy Pages
+    needs: job1_Validate_Refs_Tag
+    # Note: Callable workflows must be used on Job context directly
+    uses: MHPH/cv.paul-hoffrogge.de.io/.github/workflows/__reusable_deploy_pages.yml@migrate_to_common_action
+    with:
+      runner: ubuntu-latest
+      LANGUAGE_CODE: ${{ needs.job1_Validate_Refs_Tag.outputs.LANGUAGE_CODE }}
+      SOURCE_REPO_REF: ${{ needs.job1_Validate_Refs_Tag.outputs.SOURCE_REPO_REF }}
+    secrets:  
+      PRIVATE_REPO_PAT: ${{ secrets.PRIVATE_REPO_PAT }}
