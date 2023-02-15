@@ -20,6 +20,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  deployments: write
 
 # Allow one concurrent deployment
 # s. https://github.com/actions/starter-workflows/blob/main/pages/jekyll.yml
@@ -66,10 +67,23 @@ jobs:
     name: Call Reusable Deploy Pages
     needs: job1_Validate_Refs_Tag
     # Note: Callable workflows must be used on Job context directly
-    uses: MHPH/cv.paul-hoffrogge.de.io/.github/workflows/__reusable_deploy_pages.yml@migrate_to_common_action
+    uses: MHPH/cv.paul-hoffrogge.de.io/.github/workflows/__reusable_deploy_pages.yml@master
     with:
       runner: ubuntu-latest
       LANGUAGE_CODE: ${{ needs.job1_Validate_Refs_Tag.outputs.LANGUAGE_CODE }}
       SOURCE_REPO_REF: ${{ needs.job1_Validate_Refs_Tag.outputs.SOURCE_REPO_REF }}
     secrets:  
       PRIVATE_REPO_PAT: ${{ secrets.PRIVATE_REPO_PAT }}
+
+
+  job3_Cleanup_Deployment_History:
+    name: Cleanup Deployment History
+    needs: job2_Deploy_Site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete Deployments
+        uses: strumwolf/delete-deployment-environment@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          environment: github-pages
+          onlyRemoveDeployments: true
