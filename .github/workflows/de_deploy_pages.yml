@@ -62,23 +62,9 @@ jobs:
           echo "LANGUAGE_CODE=${{ env.LANGUAGE_CODE }}" >> $GITHUB_OUTPUT
           echo "SOURCE_REPO_REF=${{ env.SOURCE_REPO_REF }}" >> $GITHUB_OUTPUT
 
-
-  job2_Deploy_Site:
-    name: Call Reusable Deploy Pages
-    needs: job1_Validate_Refs_Tag
-    # Note: Callable workflows must be used on Job context directly
-    uses: MHPH/cv.paul-hoffrogge.de.io/.github/workflows/__reusable_deploy_pages.yml@master
-    with:
-      runner: ubuntu-latest
-      LANGUAGE_CODE: ${{ needs.job1_Validate_Refs_Tag.outputs.LANGUAGE_CODE }}
-      SOURCE_REPO_REF: ${{ needs.job1_Validate_Refs_Tag.outputs.SOURCE_REPO_REF }}
-    secrets:  
-      PRIVATE_REPO_PAT: ${{ secrets.PRIVATE_REPO_PAT }}
-
-
-  job3_Cleanup_Deployment_History:
+  job2_Cleanup_Deployment_History:
     name: Cleanup Deployment History
-    needs: job2_Deploy_Site
+    needs: job1_Validate_Refs_Tag
     runs-on: ubuntu-latest
     steps:
       - name: Delete Deployments
@@ -87,3 +73,15 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           environment: github-pages
           onlyRemoveDeployments: true
+
+  job3_Deploy_Site:
+    name: Call Reusable Deploy Pages
+    needs: [job1_Validate_Refs_Tag, job2_Cleanup_Deployment_History]
+    # Note: Callable workflows must be used on Job context directly
+    uses: MHPH/cv.paul-hoffrogge.de.io/.github/workflows/__reusable_deploy_pages.yml@master
+    with:
+      runner: ubuntu-latest
+      LANGUAGE_CODE: ${{ needs.job1_Validate_Refs_Tag.outputs.LANGUAGE_CODE }}
+      SOURCE_REPO_REF: ${{ needs.job1_Validate_Refs_Tag.outputs.SOURCE_REPO_REF }}
+    secrets:  
+      PRIVATE_REPO_PAT: ${{ secrets.PRIVATE_REPO_PAT }}
